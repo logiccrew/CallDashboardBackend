@@ -33,6 +33,8 @@ mongoose.connect(MongoDBURI).then(() => {
 });
 
 
+
+
 const pool = new Pool({
   user: users,
   host: hosts,
@@ -42,6 +44,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+
+fastify.get('/', async (request, reply) => {
+  reply.send({ message: 'API is running. Try /api/data or /api/login' });
+});
 
 fastify.get('/api/data', async (request, reply) => {
   try {
