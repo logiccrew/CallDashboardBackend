@@ -100,12 +100,14 @@ fastify.post('/api/users', async (request, reply) => {
 // ✅ Start the server
 const start = async () => {
   try {
-    await fastify.listen({ port: 5000 });
-    fastify.log.info(`🚀 Server running at http://localhost:5000`);
+    const port = 5000;
+    await fastify.listen({ port, host: '0.0.0.0' }); // Use 0.0.0.0 to bind on all interfaces
+    fastify.log.info(`🚀 Server running at http://localhost:${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
 };
+
 
 start();
