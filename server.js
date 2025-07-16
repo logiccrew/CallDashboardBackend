@@ -1,113 +1,93 @@
-import Fastify from 'fastify';
+import express from 'express';
 import mongoose from 'mongoose';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import User from './model/User.js';
 import bcrypt from 'bcrypt';
+import cors from 'cors'; // Optional
 
 dotenv.config();
-const fastify = Fastify({ logger: true });
 
+const app = express();
+app.use(express.json());
 
-// await fastify.register(fastifyCors, {
-//   origin: 'http://localhost:8080',  // frontend origin
-//   credentials: true
-// });
+// Optional CORS setup
+app.use(cors({
+  origin: 'http://localhost:8080', // or your frontend domain
+  credentials: true
+}));
 
+// MongoDB connection
+mongoose.connect(process.env.MONGODBURI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB error:', err));
 
-
-const MongoDBURI = process.env.MONGODBURI;
-
-const users = process.env.PGUSER;
-const hosts = process.env.PGHOST;
-const databases = process.env.PGDATABASE;
-const passwords = process.env.PGPASSWORD;
-const ports = process.env.PGPORT;
-
-
-
-mongoose.connect(MongoDBURI).then(() => {
-  fastify.log.info('MongoDB connected');
-}).catch(err => {
-  fastify.log.error(err);
-});
-
-
-
-
+// PostgreSQL connection
 const pool = new Pool({
-  user: users,
-  host: hosts,
-  database: databases,
-  password: passwords,
-  port: ports ,
+  user: process.env.PGUSER,
+  host: process.env.PGHOST,
+  database: process.env.PGDATABASE,
+  password: process.env.PGPASSWORD,
+  port: process.env.PGPORT,
   ssl: { rejectUnauthorized: false }
 });
 
+// Routes
 
-fastify.get('/', async (request, reply) => {
-  reply.send({ message: 'API is running. Try /api/data or /api/login' });
+app.get('/', (req, res) => {
+  res.send({ message: 'API is running. Try /api/data or /api/login' });
 });
 
-fastify.get('/api/data', async (request, reply) => {
+app.get('/api/data', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM "call summary"');
-    console.log(result)
-    return result.rows;
+    res.send(result.rows);
   } catch (err) {
-    fastify.log.error(err);
-    reply.code(500).send({ error: err.message });
+    console.error(err);
+    res.status(500).send({ error: err.message });
   }
 });
 
-
-
-
-fastify.post('/api/login', async (request, reply) => {
-  const { email, password } = request.body;
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return reply.code(401).send({ error: 'Invalid email or password' });
+      return res.status(401).send({ error: 'Invalid email or password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return reply.code(401).send({ error: 'Invalid email or password' });
+      return res.status(401).send({ error: 'Invalid email or password' });
     }
 
-    // Success
-    reply.send({ success: true, message: 'User authenticated', user: { email: user.email, firstname: user.firstname } });
+    res.send({
+      success: true,
+      message: 'User authenticated',
+      user: {
+        email: user.email,
+        firstname: user.firstname
+      }
+    });
   } catch (err) {
-    reply.code(500).send({ error: err.message });
+    res.status(500).send({ error: err.message });
   }
 });
 
-
-fastify.post('/api/users', async (request, reply) => {
+app.post('/api/users', async (req, res) => {
   try {
-    const user = new User(request.body);
+    const user = new User(req.body);
     const saved = await user.save();
-    reply.code(201).send(saved);
+    res.status(201).send(saved);
   } catch (err) {
-    fastify.log.error(err);
-    reply.code(500).send({ error: err.message });
+    console.error(err);
+    res.status(500).send({ error: err.message });
   }
 });
 
-
-// ✅ Start the server
-const start = async () => {
-  try {
-    const port = 5000;
-    await fastify.listen({ port, host: '0.0.0.0' }); // Use 0.0.0.0 to bind on all interfaces
-    fastify.log.info(`🚀 Server running at http://localhost:${port}`);
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-};
-
-
-start();
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
