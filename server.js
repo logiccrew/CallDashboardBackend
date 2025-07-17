@@ -11,11 +11,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// Optional CORS setup
-app.use(cors({
-  origin: 'http://localhost:8080', // or your frontend domain
-  credentials: true
-}));
+
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODBURI)
